@@ -6,8 +6,6 @@
     <title>Brasa & Malte - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- SUPABASE SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
@@ -76,12 +74,12 @@
                 <div>
                     <h1 class="text-3xl font-black italic text-brand-orange">PAINEL DE CONTROLE</h1>
                     <p class="text-sm mt-1 font-bold flex items-center gap-2 text-gray-400">
-                        Status: <span id="status-text" class="text-green-500">CARREGANDO...</span>
+                        Status: <span id="status-text" class="text-green-500">ABERTO PARA PEDIDOS</span>
                     </p>
                 </div>
                 <div class="flex gap-4 w-full md:w-auto">
-                    <button onclick="toggleStore()" id="toggle-store-btn" class="flex-1 md:flex-none px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg transition duration-300 bg-gray-500 text-white">
-                        ...
+                    <button onclick="toggleStore()" id="toggle-store-btn" class="flex-1 md:flex-none px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg transition duration-300 bg-red-500 hover:bg-red-600 text-white">
+                        FECHAR LOJA
                     </button>
                     <button onclick="logout()" class="bg-gray-700 hover:bg-gray-600 p-3 rounded-2xl text-white transition">
                         <i data-lucide="log-out" class="w-5 h-5"></i>
@@ -118,12 +116,15 @@
                             <button onclick="printDailyReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-black uppercase flex items-center gap-2 transition-all h-[34px]">
                                 <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Dia
                             </button>
+
+                             <button onclick="resetDailyOrders()" class="bg-red-500/10 hover:bg-red-500/30 text-red-500 px-4 py-2 rounded-lg text-xs font-black uppercase flex items-center gap-2 transition-all border border-red-500/20 h-[34px]">
+                                <i data-lucide="trash" class="w-3 h-3"></i> Limpar Dia
+                            </button>
                         </div>
                     </div>
 
                     <div id="orders-container" class="space-y-4">
                         <!-- Orders injected here -->
-                        <div class="text-center py-10 text-gray-500">Carregando pedidos...</div>
                     </div>
                 </div>
 
@@ -148,6 +149,14 @@
                                     <p class="text-xs text-gray-500 italic">Nenhum pagamento hoje.</p>
                                 </div>
                             </div>
+                            <div class="pt-6 mt-6 border-t border-gray-800">
+                                <button onclick="closeRegister()" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-3 rounded-xl uppercase text-xs tracking-widest flex items-center justify-center gap-2 mb-2 transition-all">
+                                    <i data-lucide="check-circle" class="w-4 h-4"></i> Fechar Caixa
+                                </button>
+                                <p class="text-[10px] text-gray-500 text-center leading-tight mb-4">
+                                    O fechamento salva os dados no resumo mensal (apenas pedidos ativos) e limpa a tela de pedidos.
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -155,13 +164,16 @@
                     <div class="bg-brand-card p-6 rounded-3xl border border-gray-800 h-fit">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-bold italic uppercase flex items-center gap-2 text-brand-orange">
-                                <i data-lucide="calendar" class="w-5 h-5"></i> Mensal (Atual)
+                                <i data-lucide="calendar" class="w-5 h-5"></i> Mensal
                             </h2>
+                            <select id="stats-month-filter" onchange="renderCurrentMonthlyStats()" class="bg-gray-900 text-xs font-bold text-white border border-gray-700 rounded-lg p-1 outline-none">
+                                <!-- Populated by JS -->
+                            </select>
                         </div>
                         
                         <div class="space-y-4">
                             <div class="bg-gray-900 p-5 rounded-2xl border border-gray-800">
-                                <span class="text-xs text-gray-500 block uppercase font-bold mb-1">Faturamento Mês Atual</span>
+                                <span class="text-xs text-gray-500 block uppercase font-bold mb-1">Faturamento</span>
                                 <span id="month-revenue" class="text-3xl font-black text-green-500">R$ 0.00</span>
                             </div>
                              <div class="bg-gray-900 p-5 rounded-2xl border border-gray-800 flex justify-between items-center">
@@ -170,6 +182,17 @@
                                     <span id="month-count" class="text-2xl font-black text-white">0</span>
                                 </div>
                             </div>
+                            
+                            <div class="bg-gray-900 p-4 rounded-2xl border border-gray-800">
+                                <h3 class="text-xs font-bold text-gray-400 uppercase mb-3 border-b border-gray-700 pb-2">Por Pagamento</h3>
+                                <div id="payment-breakdown" class="space-y-2 text-xs">
+                                    <p class="text-gray-500 italic">Sem dados registrados.</p>
+                                </div>
+                            </div>
+
+                            <button onclick="resetMonthly()" class="w-full mt-4 text-xs text-red-500 font-bold hover:text-red-400 uppercase tracking-widest flex items-center justify-center gap-2 py-2 border border-red-500/20 rounded-xl hover:bg-red-500/10 transition">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i> Resetar este Mês
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -188,7 +211,6 @@
 
                 <div id="admin-products-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Products injected here -->
-                    <div class="text-center py-10 text-gray-500 col-span-full">Carregando produtos...</div>
                 </div>
             </div>
         </div>
@@ -247,50 +269,11 @@
     </div>
 
     <script>
-        /* 
-        =====================================================
-        INSTRUÇÕES PARA SUPABASE (SQL EDITOR)
-        Rode esses comandos no SQL Editor do Supabase para criar as tabelas:
-
-        create table products (
-            id bigint generated by default as identity primary key,
-            name text,
-            price float,
-            description text,
-            image text,
-            category text,
-            options text[]
-        );
-
-        create table orders (
-            id bigint generated by default as identity primary key,
-            customer_name text,
-            customer_phone text,
-            total float,
-            status text default 'Pendente',
-            items jsonb,
-            payment_method text,
-            change_amount text,
-            delivery_type text,
-            address text,
-            discount float,
-            created_at timestamp with time zone default timezone('utc'::text, now())
-        );
-
-        create table settings (
-            key text primary key,
-            value boolean
-        );
-
-        insert into settings (key, value) values ('store_open', true);
-        =====================================================
-        */
-
-        const SUPABASE_URL = 'https://ckcajwsmqnducxrxonfo.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_n2PHls5ekhYuMqOnKsC5wQ_osqjDuC-';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+        // --- AUTH & INIT ---
+        const MONTHLY_KEY = 'brasa_monthly_stats_v2'; 
         const AUTH_KEY = 'brasa_admin_auth';
+        const PRODUCTS_KEY = 'brasa_products';
+
         let orders = [];
         let products = [];
         let isStoreOpen = true;
@@ -303,6 +286,20 @@
             { id: 'Sucos', label: 'Sucos' },
         ];
 
+        // Default products to seed if empty
+        const DEFAULT_PRODUCTS = [
+            { id: 1, name: "Brasa Clássico", price: 32.00, description: "Pão Brioche, Blend 180g na brasa, queijo prato e maionese defumada.", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80", category: 'Hamburguers' },
+            { id: 2, name: "Brasa Supreme", price: 36.00, description: "Pão Brioche, Blend 180g na brasa, queijo prato, bacon crocante, cebola caramelizada e maionese defumada.", image: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&q=80", category: 'Hamburguers' },
+            { id: 3, name: "Cheddar Explosion", price: 38.00, description: "Pão Brioche, Blend 180g, muito bacon crocante, cheddar cremoso e cebola caramelizada.", image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=500&q=80", category: 'Hamburguers' },
+            { id: 4, name: "Smash Duplo", price: 29.00, description: "Dois smash burgers de 90g, queijo americano, picles e molho especial.", image: "https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=500&q=80", category: 'Hamburguers' },
+            { id: 7, name: "Combo Brasa Clássico", price: 44.90, description: "Brasa Clássico + Batata Rústica + Refri Lata.", image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=500&q=80", category: 'Combos' },
+            { id: 8, name: "Combo Cheddar", price: 54.90, description: "Cheddar Explosion + Nugget + Refri 600ml.", image: "https://images.unsplash.com/photo-1610614819513-58e34989848b?w=500&q=80", category: 'Combos' },
+            { id: 10, name: "Batata Rústica", price: 24.00, description: "Porção de batatas com páprica defumada.", image: "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?w=500&q=80", category: 'Acompanhamentos' },
+            { id: 11, name: "Nuggets", price: 20.00, description: "08 unidades crocantes.", image: "https://images.unsplash.com/photo-1562967960-f5549285d914?w=500&q=80", category: 'Acompanhamentos' },
+            { id: 12, name: "Refri Lata", price: 6.00, description: "350ml - Escolha o sabor.", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&q=80", category: 'Refrigerantes', options: ['Coca-Cola', 'Zero', 'Guaraná', 'Fanta'] },
+            { id: 16, name: "Suco Natural", price: 14.00, description: "500ml da fruta.", image: "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=500&q=80", category: 'Sucos', options: ['Laranja', 'Acerola', 'Abacaxi'] }
+        ];
+
         document.addEventListener('DOMContentLoaded', () => {
             // Auth Check
             const isAuth = sessionStorage.getItem(AUTH_KEY) === 'true' || localStorage.getItem(AUTH_KEY) === 'true';
@@ -313,6 +310,7 @@
                 document.getElementById('login-screen').classList.remove('hidden');
             }
             lucide.createIcons();
+            populateMonthSelects();
             populateCategorySelect();
         });
 
@@ -341,11 +339,11 @@
             if (input.type === 'password') {
                 input.type = 'text';
                 icon.setAttribute('data-lucide', 'eye-off');
+                input.parentElement.querySelector('svg').style.opacity = '0.5';
             } else {
                 input.type = 'password';
-                icon.setAttribute('data-lucide', 'eye');
+                input.parentElement.querySelector('svg').style.opacity = '1';
             }
-            lucide.createIcons();
         }
 
         function logout() {
@@ -357,35 +355,9 @@
         function showDashboard() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
-            
-            // Initial Load
             loadData();
             loadProducts();
-            
-            // Realtime Listeners
-            supabase.channel('custom-all-channel')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'orders' },
-                (payload) => {
-                    console.log('Realtime update:', payload);
-                    loadData(); // Reload orders on any change
-                }
-            )
-            .subscribe();
-
-            supabase.channel('settings-channel')
-            .on(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'settings' },
-                (payload) => {
-                    if(payload.new.key === 'store_open') {
-                        isStoreOpen = payload.new.value;
-                        updateStoreStatusUI();
-                    }
-                }
-            )
-            .subscribe();
+            setInterval(loadData, 5000); 
         }
 
         function switchTab(tab) {
@@ -408,66 +380,71 @@
                 tabProducts.classList.remove('tab-inactive');
                 tabOrders.classList.remove('tab-active');
                 tabOrders.classList.add('tab-inactive');
-                loadProducts();
+                renderAdminProducts(); // Ensure fresh render
             }
         }
 
         // --- DATA LOGIC ---
-        async function loadData() {
+        function getOrdersFromStorage() {
             try {
-                // Fetch Orders
-                const { data: ordersData, error: ordersError } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .order('created_at', { ascending: false });
+                const data = localStorage.getItem('brasa_orders_db');
+                return data ? JSON.parse(data) : [];
+            } catch (e) { return []; }
+        }
 
-                if (ordersError) throw ordersError;
-                orders = ordersData || [];
+        function saveOrdersToStorage(newOrders) {
+            orders = newOrders;
+            localStorage.setItem('brasa_orders_db', JSON.stringify(orders));
+            renderOrders();
+        }
 
-                // Fetch Store Status
-                const { data: settingsData, error: settingsError } = await supabase
-                    .from('settings')
-                    .select('value')
-                    .eq('key', 'store_open')
-                    .single();
+        function getMonthlyStatsMap() {
+            try {
+                const data = localStorage.getItem(MONTHLY_KEY);
+                return data ? JSON.parse(data) : {};
+            } catch (e) { return {}; }
+        }
 
-                if (!settingsError && settingsData) {
-                    isStoreOpen = settingsData.value;
-                }
+        function saveMonthlyStatsMap(map) {
+            localStorage.setItem(MONTHLY_KEY, JSON.stringify(map));
+            renderCurrentMonthlyStats();
+        }
 
-                updateStoreStatusUI();
-                renderOrders();
-                renderDailyStats();
-                renderMonthlyStats();
-
-            } catch (error) {
-                console.error("Erro ao carregar dados:", error);
-            }
+        function loadData() {
+            orders = getOrdersFromStorage();
+            
+            const storedStatus = localStorage.getItem('brasa_store_open');
+            isStoreOpen = storedStatus === null ? true : storedStatus === 'true';
+            updateStoreStatusUI();
+            
+            renderOrders();
+            renderCurrentMonthlyStats();
         }
 
         // --- PRODUCTS CRUD LOGIC ---
-        async function loadProducts() {
-            try {
-                const { data, error } = await supabase
-                    .from('products')
-                    .select('*')
-                    .order('name');
-                
-                if (error) throw error;
-                products = data || [];
-                renderAdminProducts();
-            } catch (error) {
-                console.error("Erro ao carregar produtos:", error);
+        function loadProducts() {
+            const stored = localStorage.getItem(PRODUCTS_KEY);
+            if (stored) {
+                try {
+                    products = JSON.parse(stored);
+                } catch(e) {
+                    products = DEFAULT_PRODUCTS;
+                }
+            } else {
+                // First time load: Seed with defaults
+                products = DEFAULT_PRODUCTS;
+                localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
             }
+            renderAdminProducts();
+        }
+
+        function saveProductsToStorage() {
+            localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products));
+            renderAdminProducts();
         }
 
         function renderAdminProducts() {
             const container = document.getElementById('admin-products-list');
-            if(products.length === 0) {
-                 container.innerHTML = '<div class="text-center py-10 text-gray-500 col-span-full">Nenhum produto cadastrado.</div>';
-                 return;
-            }
-
             container.innerHTML = products.map(p => `
                 <div class="bg-brand-card p-4 rounded-xl border border-gray-800 flex gap-4 items-center">
                     <img src="${p.image}" class="w-20 h-20 rounded-lg object-cover bg-gray-900">
@@ -527,60 +504,54 @@
             document.getElementById('product-modal').classList.remove('hidden');
         }
 
-        async function deleteProduct(id) {
+        function deleteProduct(id) {
             if (confirm("Tem certeza que deseja remover este produto?")) {
-                const { error } = await supabase.from('products').delete().eq('id', id);
-                if(error) alert("Erro ao deletar");
-                else loadProducts();
+                products = products.filter(p => p.id != id);
+                saveProductsToStorage();
             }
         }
 
-        async function handleProductSubmit(e) {
+        function handleProductSubmit(e) {
             e.preventDefault();
             
             const idInput = document.getElementById('prod-id').value;
             const name = document.getElementById('prod-name').value;
             const price = parseFloat(document.getElementById('prod-price').value);
-            const description = document.getElementById('prod-desc').value;
+            const desc = document.getElementById('prod-desc').value;
             const image = document.getElementById('prod-image').value;
             const category = document.getElementById('prod-category').value;
             const optionsStr = document.getElementById('prod-options').value;
             
-            const options = optionsStr.trim() ? optionsStr.split(',').map(s => s.trim()) : [];
+            const options = optionsStr.trim() ? optionsStr.split(',').map(s => s.trim()) : undefined;
 
-            const productData = { name, price, description, image, category, options };
-
-            try {
-                if (idInput) {
-                    // Update
-                    const { error } = await supabase.from('products').update(productData).eq('id', idInput);
-                    if(error) throw error;
-                } else {
-                    // Create
-                    const { error } = await supabase.from('products').insert([productData]);
-                    if(error) throw error;
+            if (idInput) {
+                // Update
+                const index = products.findIndex(p => p.id == idInput);
+                if (index !== -1) {
+                    products[index] = {
+                        ...products[index],
+                        name, price, description: desc, image, category, options
+                    };
                 }
-                loadProducts();
-                closeProductModal();
-            } catch(error) {
-                alert("Erro ao salvar produto: " + error.message);
+            } else {
+                // Create
+                const newId = Date.now(); // Simple ID generation
+                products.push({
+                    id: newId,
+                    name, price, description: desc, image, category, options
+                });
             }
+
+            saveProductsToStorage();
+            closeProductModal();
         }
 
 
         // --- GENERIC ADMIN LOGIC ---
-        async function toggleStore() {
-            const newState = !isStoreOpen;
-            const { error } = await supabase
-                .from('settings')
-                .upsert({ key: 'store_open', value: newState });
-            
-            if(!error) {
-                isStoreOpen = newState;
-                updateStoreStatusUI();
-            } else {
-                alert("Erro ao alterar status da loja");
-            }
+        function toggleStore() {
+            isStoreOpen = !isStoreOpen;
+            localStorage.setItem('brasa_store_open', String(isStoreOpen));
+            updateStoreStatusUI();
         }
 
         function updateStoreStatusUI() {
@@ -600,35 +571,167 @@
             }
         }
 
-        async function updateStatus(orderId, newStatus) {
-            const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
-            if(error) alert("Erro ao atualizar status");
-            // loadData triggered by Realtime
+        function updateStatus(orderId, newStatus) {
+            const updated = orders.map(o => o.id === orderId.toString() ? { ...o, status: newStatus } : o);
+            saveOrdersToStorage(updated);
+        }
+
+        function deleteOrder(orderId) {
+            if (confirm('Deletar este pedido permanentemente?')) {
+                const updated = orders.filter(o => o.id !== orderId.toString());
+                saveOrdersToStorage(updated);
+            }
+        }
+
+        function resetDailyOrders() {
+            if(confirm("ATENÇÃO: ISSO APAGARÁ TODOS OS PEDIDOS DE HOJE.\n\nDeseja continuar?")) {
+                const today = new Date().toLocaleDateString('pt-BR');
+                const remainingOrders = orders.filter(o => {
+                    const oDate = new Date(o.date).toLocaleDateString('pt-BR');
+                    return oDate !== today;
+                });
+                saveOrdersToStorage(remainingOrders);
+                alert("Pedidos do dia limpos.");
+            }
+        }
+
+        function closeRegister() {
+            const today = new Date().toLocaleDateString('pt-BR');
+            const activeTodayOrders = orders.filter(o => {
+                const isToday = new Date(o.date).toLocaleDateString('pt-BR') === today;
+                const isActive = o.status !== 'Cancelado';
+                return isToday && isActive;
+            });
+
+            if (activeTodayOrders.length === 0) {
+                return alert("Não há pedidos ativos (não cancelados) hoje para fechar o caixa.");
+            }
+
+            if (!confirm(`Confirmar fechamento de caixa?\n\n${activeTodayOrders.length} pedidos ativos serão contabilizados e removidos da tela.`)) {
+                return;
+            }
+
+            const orderDate = new Date(activeTodayOrders[0].date);
+            const monthKey = `${String(orderDate.getMonth() + 1).padStart(2, '0')}/${orderDate.getFullYear()}`;
+
+            const statsMap = getMonthlyStatsMap();
+            if (!statsMap[monthKey]) {
+                statsMap[monthKey] = { revenue: 0, count: 0, payments: { 'Pix': 0, 'Cartão': 0, 'Dinheiro': 0 } };
+            }
+
+            activeTodayOrders.forEach(o => {
+                statsMap[monthKey].revenue += o.total;
+                statsMap[monthKey].count += 1;
+                
+                const method = o.paymentMethod || 'Outros';
+                if (!statsMap[monthKey].payments[method]) statsMap[monthKey].payments[method] = 0;
+                statsMap[monthKey].payments[method] += o.total;
+            });
+
+            saveMonthlyStatsMap(statsMap);
+
+            const remainingOrders = orders.filter(o => {
+                const oDate = new Date(o.date).toLocaleDateString('pt-BR');
+                return oDate !== today;
+            });
+            saveOrdersToStorage(remainingOrders);
+            
+            populateMonthSelects();
+
+            alert("Caixa fechado com sucesso! Valores adicionados ao resumo de " + monthKey);
+        }
+
+        function resetMonthly() {
+            const select = document.getElementById('stats-month-filter');
+            const selectedMonth = select.value;
+            
+            if (!selectedMonth) return;
+
+            if (confirm(`ATENÇÃO: Isso zerará o faturamento de ${selectedMonth}.\n\nDeseja continuar?`)) {
+                const statsMap = getMonthlyStatsMap();
+                delete statsMap[selectedMonth]; 
+                saveMonthlyStatsMap(statsMap);
+                populateMonthSelects(); 
+            }
+        }
+
+        function populateMonthSelects() {
+            const select = document.getElementById('stats-month-filter');
+            const currentVal = select.value;
+            
+            const statsMap = getMonthlyStatsMap();
+            let keys = Object.keys(statsMap).sort().reverse();
+            
+            const today = new Date();
+            const currentKey = `${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+            if (!keys.includes(currentKey)) keys.unshift(currentKey);
+            
+            keys = [...new Set(keys)];
+
+            select.innerHTML = keys.map(k => `<option value="${k}">${k}</option>`).join('');
+            
+            if (currentVal && keys.includes(currentVal)) {
+                select.value = currentVal;
+            } else {
+                select.value = keys[0];
+            }
+        }
+
+        function renderCurrentMonthlyStats() {
+            const select = document.getElementById('stats-month-filter');
+            const selectedMonth = select.value;
+            const statsMap = getMonthlyStatsMap();
+            
+            const stats = statsMap[selectedMonth] || { revenue: 0, count: 0, payments: {} };
+
+            document.getElementById('month-revenue').innerText = `R$ ${stats.revenue.toFixed(2)}`;
+            document.getElementById('month-count').innerText = stats.count;
+
+            const breakdownContainer = document.getElementById('payment-breakdown');
+            const methods = Object.keys(stats.payments);
+            
+            if (methods.length === 0 || stats.revenue === 0) {
+                breakdownContainer.innerHTML = '<p class="text-gray-500 italic">Sem dados registrados.</p>';
+            } else {
+                breakdownContainer.innerHTML = methods.map(method => {
+                    const val = stats.payments[method];
+                    if (val === 0) return '';
+                    return `
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-300 font-medium">${method}</span>
+                            <span class="font-bold text-white">R$ ${val.toFixed(2)}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
         }
 
         function printDailyReport() {
             const d = new Date();
             const todayStr = d.toLocaleDateString('pt-BR');
             
+            // Filter orders for today using the exact same logic as the dashboard
             const dailyOrders = orders.filter(o => {
-                const oDate = new Date(o.created_at).toLocaleDateString('pt-BR');
+                const oDate = new Date(o.date).toLocaleDateString('pt-BR');
                 return oDate === todayStr;
             });
 
             if (dailyOrders.length === 0) return alert("Sem pedidos hoje para imprimir.");
 
+            // Calculate totals
             let totalRevenue = 0;
             const payments = { 'Pix': 0, 'Cartão': 0, 'Dinheiro': 0 };
 
             dailyOrders.forEach(o => {
                 if(o.status !== 'Cancelado') {
                     totalRevenue += o.total;
-                    const method = o.payment_method || 'Outros';
+                    const method = o.paymentMethod || 'Outros';
                     if(!payments[method]) payments[method] = 0;
                     payments[method] += o.total;
                 }
             });
 
+            // Build HTML with styles optimized for both A4 and Thermal Printers
             const printWindow = window.open('', '', 'width=800,height=600');
             if (!printWindow) return alert("Habilite pop-ups para imprimir.");
 
@@ -642,7 +745,7 @@
                             font-family: 'Courier New', Courier, monospace; 
                             padding: 10px; 
                             color: #000; 
-                            max-width: 80mm; 
+                            max-width: 80mm; /* Optimizes for receipt width, but scales up on A4 */
                             margin: 0 auto;
                         }
                         h1 { text-align: center; font-size: 18px; margin-bottom: 5px; text-transform: uppercase; }
@@ -684,10 +787,10 @@
                         <tbody>
                             ${dailyOrders.map(o => `
                                 <tr class="${o.status === 'Cancelado' ? 'status-cancelado' : ''}">
-                                    <td>${new Date(o.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</td>
+                                    <td>${new Date(o.date).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</td>
                                     <td>
-                                        <b>#${o.id}</b> ${o.customer_name}<br>
-                                        <span style="font-size:9px">${o.payment_method}</span>
+                                        <b>#${o.id}</b> ${o.customerName}<br>
+                                        <span style="font-size:9px">${o.paymentMethod}</span>
                                     </td>
                                     <td class="right">R$ ${o.total.toFixed(2)}</td>
                                 </tr>
@@ -709,7 +812,7 @@
         }
 
         function printOrder(orderId) {
-            const order = orders.find(o => o.id === orderId);
+            const order = orders.find(o => o.id === orderId.toString());
             if (!order) return;
 
             const printWindow = window.open('', '', 'width=600,height=800');
@@ -745,23 +848,23 @@
                         <div class="header">
                             <h2>Brasa & Malte</h2>
                             <h3>PEDIDO #${order.id}</h3>
-                            <div style="font-size: 10px;">${new Date(order.created_at).toLocaleString('pt-BR')}</div>
+                            <div style="font-size: 10px;">${new Date(order.date).toLocaleString('pt-BR')}</div>
                         </div>
                         <div class="info">
-                            <b>Cliente:</b> ${order.customer_name}<br>
-                            <b>Tel:</b> ${order.customer_phone}<br>
-                            <b>Tipo:</b> ${order.delivery_type === 'delivery' ? 'ENTREGA' : 'RETIRADA'}<br>
+                            <b>Cliente:</b> ${order.customerName}<br>
+                            <b>Tel:</b> ${order.customerPhone}<br>
+                            <b>Tipo:</b> ${order.deliveryType === 'delivery' ? 'ENTREGA' : 'RETIRADA'}<br>
                             ${order.address ? `<b>Endereço:</b> ${order.address}<br>` : ''}
                             <div style="margin-top: 5px;">
-                                <b>Pagamento:</b> ${order.payment_method}<br>
-                                ${order.change_amount ? `Troco para: ${order.change_amount}` : ''}
+                                <b>Pagamento:</b> ${order.paymentMethod}<br>
+                                ${order.changeAmount ? `Troco para: ${order.changeAmount}` : ''}
                             </div>
                         </div>
                         <div class="items">
                             ${itemsHtml}
                         </div>
                         ${order.discount > 0 ? `<div style="text-align: right; font-size: 11px;">Desconto: - R$ ${order.discount.toFixed(2)}</div>` : ''}
-                        ${order.delivery_type === 'delivery' ? `<div style="text-align: right; font-size: 11px;">Taxa Entrega: R$ 7.00</div>` : ''}
+                        ${order.deliveryType === 'delivery' ? `<div style="text-align: right; font-size: 11px;">Taxa Entrega: R$ 7.00</div>` : ''}
                         <div class="total">
                             TOTAL: R$ ${order.total.toFixed(2)}
                         </div>
@@ -779,18 +882,20 @@
 
         function renderOrders() {
             const container = document.getElementById('orders-container');
-            const today = new Date().toLocaleDateString('pt-BR');
-            
-            // Filter active orders for stats
-            const activeTodayOrders = orders.filter(o => {
-                const isToday = new Date(o.created_at).toLocaleDateString('pt-BR') === today;
-                return isToday && o.status !== 'Cancelado';
-            });
+            const filtered = [...orders].reverse();
 
-            // Calculate Payment breakdown
+            const today = new Date().toLocaleDateString('pt-BR');
+            const activeTodayOrders = orders.filter(o => {
+                const isToday = new Date(o.date).toLocaleDateString('pt-BR') === today;
+                const isActive = o.status !== 'Cancelado';
+                return isToday && isActive;
+            });
+            
+            const todayRevenue = activeTodayOrders.reduce((acc, o) => acc + o.total, 0);
+
             const dailyBreakdown = { 'Pix': 0, 'Cartão': 0, 'Dinheiro': 0 };
             activeTodayOrders.forEach(o => {
-                const m = o.payment_method || 'Outros';
+                const m = o.paymentMethod || 'Outros';
                 if (dailyBreakdown[m] === undefined) dailyBreakdown[m] = 0;
                 dailyBreakdown[m] += o.total;
             });
@@ -811,28 +916,31 @@
                 }).join('');
             }
 
-            if(orders.length === 0) {
+            document.getElementById('stat-total-count').innerText = activeTodayOrders.length;
+            document.getElementById('stat-total-revenue').innerText = `R$ ${todayRevenue.toFixed(2)}`;
+
+            if(filtered.length === 0) {
                 container.innerHTML = '<p class="text-gray-500 italic text-center py-8">Nenhum pedido encontrado.</p>';
                 return;
             }
 
-            container.innerHTML = orders.map(order => `
+            container.innerHTML = filtered.map(order => `
                 <div class="bg-brand-card p-6 rounded-2xl border border-gray-800 shadow-lg fade-in">
                     <div class="flex justify-between items-start mb-4">
                         <div>
                             <span class="text-[10px] bg-gray-800 text-gray-400 px-2 py-1 rounded uppercase font-bold tracking-widest border border-gray-700">
-                                ${new Date(order.created_at).toLocaleString('pt-BR')}
+                                ${new Date(order.date).toLocaleString('pt-BR')}
                             </span>
                             <div class="flex items-center gap-2 mt-2">
                                 <span class="bg-brand-orange text-white text-xs font-black px-2 py-0.5 rounded">#${order.id}</span>
-                                <h3 class="text-lg font-black text-white">${order.customer_name}</h3>
+                                <h3 class="text-lg font-black text-white">${order.customerName}</h3>
                             </div>
                             <p class="text-brand-orange font-bold text-sm flex items-center gap-2 mt-1">
-                                ${order.customer_phone} 
-                                <span class="text-gray-500 text-xs font-normal">(${order.delivery_type === 'delivery' ? 'Entrega' : 'Retirada'})</span>
+                                ${order.customerPhone} 
+                                <span class="text-gray-500 text-xs font-normal">(${order.deliveryType === 'delivery' ? 'Entrega' : 'Retirada'})</span>
                             </p>
                             ${order.address ? `<p class="text-xs text-gray-400 mt-1 max-w-md">${order.address}</p>` : ''}
-                            <p class="text-xs text-green-400 mt-1">Pgto: ${order.payment_method} ${order.change_amount ? `(Troco para ${order.change_amount})` : ''}</p>
+                            <p class="text-xs text-green-400 mt-1">Pgto: ${order.paymentMethod} ${order.changeAmount ? `(Troco para ${order.changeAmount})` : ''}</p>
                         </div>
                         <div class="flex flex-col items-end gap-2">
                             <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase border 
@@ -860,7 +968,7 @@
 
                     <div class="flex gap-2">
                         <select 
-                            onchange="updateStatus(${order.id}, this.value)" 
+                            onchange="updateStatus('${order.id}', this.value)" 
                             class="flex-1 bg-gray-900 border border-gray-700 rounded-lg p-2 text-xs font-bold text-white outline-none focus:border-brand-orange"
                         >
                             <option value="Pendente" ${order.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
@@ -869,42 +977,17 @@
                             <option value="Entregue" ${order.status === 'Entregue' ? 'selected' : ''}>Entregue</option>
                             <option value="Cancelado" ${order.status === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
                         </select>
-                        <button onclick="printOrder(${order.id})" class="bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 p-2 rounded-lg border border-blue-500/20 transition">
+                        <button onclick="printOrder('${order.id}')" class="bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 p-2 rounded-lg border border-blue-500/20 transition">
                             <i data-lucide="printer" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="deleteOrder('${order.id}')" class="bg-red-500/10 hover:bg-red-500/20 text-red-500 p-2 rounded-lg border border-red-500/20 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
                         </button>
                     </div>
                 </div>
             `).join('');
             
             lucide.createIcons();
-        }
-
-        function renderDailyStats() {
-            const today = new Date().toLocaleDateString('pt-BR');
-            const activeTodayOrders = orders.filter(o => {
-                const isToday = new Date(o.created_at).toLocaleDateString('pt-BR') === today;
-                return isToday && o.status !== 'Cancelado';
-            });
-            const todayRevenue = activeTodayOrders.reduce((acc, o) => acc + o.total, 0);
-
-            document.getElementById('stat-total-count').innerText = activeTodayOrders.length;
-            document.getElementById('stat-total-revenue').innerText = `R$ ${todayRevenue.toFixed(2)}`;
-        }
-
-        function renderMonthlyStats() {
-            const today = new Date();
-            const currentMonthKey = `${today.getMonth() + 1}/${today.getFullYear()}`;
-            
-            const monthlyOrders = orders.filter(o => {
-                const d = new Date(o.created_at);
-                const k = `${d.getMonth() + 1}/${d.getFullYear()}`;
-                return k === currentMonthKey && o.status !== 'Cancelado';
-            });
-
-            const revenue = monthlyOrders.reduce((acc, o) => acc + o.total, 0);
-
-            document.getElementById('month-revenue').innerText = `R$ ${revenue.toFixed(2)}`;
-            document.getElementById('month-count').innerText = monthlyOrders.length;
         }
     </script>
 </body>

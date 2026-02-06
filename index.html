@@ -6,8 +6,6 @@
     <title>Brasa & Malte - Cardápio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- SUPABASE SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
@@ -37,6 +35,16 @@
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.13.0"
+  }
+}
+</script>
 </head>
 <body class="pb-32">
 
@@ -63,7 +71,6 @@
         <!-- Products Grid -->
         <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <!-- Products injected by JS -->
-            <div class="col-span-full text-center text-gray-500 py-10">Carregando cardápio...</div>
         </div>
     </main>
 
@@ -205,10 +212,6 @@
 
     <!-- DATA & LOGIC -->
     <script>
-        const SUPABASE_URL = 'https://ckcajwsmqnducxrxonfo.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_n2PHls5ekhYuMqOnKsC5wQ_osqjDuC-';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
         // --- CONSTANTS & DATA ---
         const STORE_PHONE = "5587991813113"; 
         const COUPONS = {
@@ -223,6 +226,20 @@
             { id: 'Sucos', label: 'Sucos' },
         ];
         
+        // Default products used only if LocalStorage is empty
+        const DEFAULT_PRODUCTS = [
+            { id: 1, name: "Brasa Clássico", price: 32.00, description: "Pão Brioche, Blend 180g na brasa, queijo prato e maionese defumada.", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80", category: 'Hamburguers' },
+            { id: 2, name: "Brasa Supreme", price: 36.00, description: "Pão Brioche, Blend 180g na brasa, queijo prato, bacon crocante, cebola caramelizada e maionese defumada.", image: "https://images.unsplash.com/photo-1550547660-d9450f859349?w=500&q=80", category: 'Hamburguers' },
+            { id: 3, name: "Cheddar Explosion", price: 38.00, description: "Blend 180g, muito bacon crocante, cheddar cremoso e cebola caramelizada.", image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=500&q=80", category: 'Hamburguers' },
+            { id: 4, name: "Smash Duplo", price: 29.00, description: "Dois smash burgers de 90g, queijo americano, picles e molho especial.", image: "https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=500&q=80", category: 'Hamburguers' },
+            { id: 7, name: "Combo Brasa Clássico", price: 44.90, description: "Brasa Clássico + Batata Rústica + Refri Lata.", image: "https://images.unsplash.com/photo-1594212699903-ec8a3eca50f5?w=500&q=80", category: 'Combos' },
+            { id: 8, name: "Combo Cheddar", price: 54.90, description: "Cheddar Explosion + Nugget + Refri 600ml.", image: "https://images.unsplash.com/photo-1610614819513-58e34989848b?w=500&q=80", category: 'Combos' },
+            { id: 10, name: "Batata Rústica", price: 24.00, description: "Porção de batatas com páprica defumada.", image: "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d?w=500&q=80", category: 'Acompanhamentos' },
+            { id: 11, name: "Nuggets", price: 20.00, description: "08 unidades crocantes.", image: "https://images.unsplash.com/photo-1562967960-f5549285d914?w=500&q=80", category: 'Acompanhamentos' },
+            { id: 12, name: "Refri Lata", price: 6.00, description: "350ml - Escolha o sabor.", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&q=80", category: 'Refrigerantes', options: ['Coca-Cola', 'Zero', 'Guaraná', 'Fanta'] },
+            { id: 16, name: "Suco Natural", price: 14.00, description: "500ml da fruta.", image: "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=500&q=80", category: 'Sucos', options: ['Laranja', 'Acerola', 'Abacaxi'] }
+        ];
+
         let PRODUCTS = [];
 
         // --- STATE ---
@@ -239,7 +256,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadProducts();
             renderCategories();
+            renderProducts();
             checkStoreStatus();
+            setInterval(checkStoreStatus, 5000);
             
             // Setup floating cart button click
             document.getElementById('floating-cart-btn').addEventListener('click', () => toggleCart(true));
@@ -248,17 +267,17 @@
             lucide.createIcons();
         });
 
-        async function loadProducts() {
-            try {
-                const { data, error } = await supabase.from('products').select('*');
-                if(!error && data) {
-                    PRODUCTS = data;
-                    renderProducts();
-                } else {
-                    console.error(error);
+        function loadProducts() {
+            const stored = localStorage.getItem('brasa_products');
+            if (stored) {
+                try {
+                    PRODUCTS = JSON.parse(stored);
+                } catch(e) {
+                    PRODUCTS = DEFAULT_PRODUCTS;
                 }
-            } catch (e) {
-                console.error("Error loading products", e);
+            } else {
+                PRODUCTS = DEFAULT_PRODUCTS;
+                localStorage.setItem('brasa_products', JSON.stringify(PRODUCTS));
             }
         }
 
@@ -310,24 +329,10 @@
             renderProducts();
         }
 
-        async function checkStoreStatus() {
-            try {
-                const { data, error } = await supabase
-                    .from('settings')
-                    .select('value')
-                    .eq('key', 'store_open')
-                    .single();
-                
-                if(!error && data) {
-                    isStoreOpen = data.value;
-                    updateStoreStatusUI();
-                }
-            } catch (e) {
-                console.error("Error status", e);
-            }
-        }
-
-        function updateStoreStatusUI() {
+        function checkStoreStatus() {
+            const stored = localStorage.getItem('brasa_store_open');
+            isStoreOpen = stored === null ? true : stored === 'true';
+            
             const badge = document.getElementById('store-status-badge');
             if(isStoreOpen) {
                 badge.innerText = "Aberto Agora";
@@ -601,7 +606,7 @@
             else changeInput.classList.add('hidden');
         }
 
-        async function checkout() {
+        function checkout() {
             if(!isStoreOpen) return;
 
             const name = document.getElementById('input-name').value;
@@ -646,28 +651,41 @@
                 };
             });
 
-            // Send to Supabase
-            const { data, error } = await supabase.from('orders').insert([
-                {
-                    customer_name: name,
-                    customer_phone: phone,
-                    total: total,
-                    items: orderItems,
-                    payment_method: paymentMethod,
-                    change_amount: changeAmount,
-                    delivery_type: deliveryType,
-                    address: addressStr,
-                    discount: discount,
-                    status: 'Pendente'
-                }
-            ]).select();
+            // GENERATE SEQUENTIAL ID FOR TODAY
+            // 1. Get existing orders
+            let currentOrders = [];
+            try {
+                currentOrders = JSON.parse(localStorage.getItem('brasa_orders_db') || '[]');
+            } catch(e) { console.error(e); }
 
-            if(error) {
-                alert("Erro ao enviar pedido: " + error.message);
-                return;
-            }
+            // 2. Filter today's orders
+            const today = new Date().toLocaleDateString('pt-BR');
+            const todayOrders = currentOrders.filter(o => {
+                return new Date(o.date).toLocaleDateString('pt-BR') === today;
+            });
 
-            const newOrder = data[0];
+            // 3. New ID = Count + 1 (Formatted 01, 02...)
+            const seqNum = todayOrders.length + 1;
+            const newId = String(seqNum).padStart(2, '0');
+
+            const newOrder = {
+                id: newId,
+                customerName: name,
+                customerPhone: phone,
+                total: total,
+                status: 'Pendente',
+                items: orderItems,
+                date: new Date().toISOString(),
+                paymentMethod: paymentMethod,
+                changeAmount: changeAmount,
+                deliveryType: deliveryType,
+                address: addressStr,
+                discount: discount
+            };
+
+            // Save to LocalStorage
+            currentOrders.push(newOrder);
+            localStorage.setItem('brasa_orders_db', JSON.stringify(currentOrders));
 
             // WhatsApp
             let msg = `*NOVO PEDIDO #${newOrder.id}*\n\n`;
@@ -684,7 +702,7 @@
 
             window.open(`https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
             
-            // CLEAR FORM & CART
+            // CLEAR FORM & CART (Full Reset for next customer)
             cart = [];
             activeCouponCode = null;
             document.getElementById('input-name').value = '';
