@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Brasa & Malte - Cardápio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SUPABASE SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            orange: '#f97316',
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            light: '#fdba74'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0f172a; color: #f3f4f6; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .modal-open { overflow: hidden; }
+        /* Animation classes */
+        .fade-in { animation: fadeIn 0.2s ease-out; }
+        .slide-up { animation: slideUp 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    </style>
+</head>
+<body class="pb-32">
+
+    <!-- Header -->
+    <header class="h-48 md:h-64 bg-cover bg-center relative" style="background-image: url('https://images.unsplash.com/photo-1550547660-d9450f859349?w=1200&q=80')">
+        <div class="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center px-4">
+            <h1 class="text-4xl md:text-5xl font-black text-white italic tracking-tighter drop-shadow-xl">BRASA & MALTE</h1>
+            <div class="flex items-center gap-1.5 mt-2 text-gray-200 font-medium text-sm drop-shadow-md">
+                <i data-lucide="map-pin" class="w-4 h-4 text-brand-orange"></i>
+                <span>Av. Gastronômica, 123 - Centro</span>
+            </div>
+            <div id="store-status-badge" class="mt-3 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg text-white bg-gray-500">
+                Carregando...
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-6">
+        <!-- Categories -->
+        <div id="categories-container" class="sticky top-0 z-20 bg-brand-dark/95 backdrop-blur-sm py-4 mb-6 -mx-4 px-4 border-b border-gray-800 flex overflow-x-auto no-scrollbar gap-3">
+            <!-- Categories injected by JS -->
+        </div>
+
+        <!-- Products Grid -->
+        <div id="products-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Products injected by JS -->
+            <div class="col-span-full text-center text-gray-500 py-10">Carregando cardápio...</div>
+        </div>
+    </main>
+
+    <!-- Floating Cart Button -->
+    <div id="floating-cart-btn" class="hidden fixed bottom-6 left-4 right-4 max-w-4xl mx-auto bg-brand-orange text-white p-4 rounded-2xl shadow-2xl z-30 cursor-pointer flex justify-between items-center transition hover:scale-[1.02] active:scale-95">
+        <div class="flex items-center gap-3">
+            <div id="cart-count" class="bg-white/20 w-10 h-10 rounded-full flex items-center justify-center font-bold">0</div>
+            <span class="font-bold uppercase text-sm tracking-wide">Ver Pedido</span>
+        </div>
+        <span id="cart-total-floating" class="font-black text-lg">R$ 0.00</span>
+    </div>
+
+    <!-- Product Modal -->
+    <div id="product-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex items-end md:items-center justify-center p-0 md:p-4 fade-in">
+        <div class="bg-brand-card w-full max-w-md rounded-t-3xl md:rounded-3xl p-6 shadow-2xl border border-gray-700 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 id="modal-product-name" class="text-xl font-black italic text-white uppercase">Nome do Produto</h3>
+                    <p id="modal-product-desc" class="text-xs text-gray-400 mt-1">Descrição</p>
+                </div>
+                <button onclick="closeProductModal()" class="bg-gray-800 p-2 rounded-full text-gray-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div class="space-y-5">
+                <!-- Options Container -->
+                <div id="modal-options-container" class="hidden">
+                    <label class="text-sm font-bold text-gray-300 block mb-2 uppercase flex items-center gap-2">
+                        <i data-lucide="layers" class="w-4 h-4 text-brand-orange"></i> Escolha uma opção:
+                    </label>
+                    <div id="modal-options-list" class="space-y-2"></div>
+                </div>
+
+                <!-- Cooking Point Container -->
+                <div id="modal-point-container" class="hidden">
+                    <label class="text-sm font-bold text-gray-300 block mb-2 uppercase flex items-center gap-2">
+                        <i data-lucide="flame" class="w-4 h-4 text-brand-orange"></i> Ponto da Carne:
+                    </label>
+                    <div class="flex gap-2">
+                        <button onclick="selectPoint('Mal Passado')" class="point-btn flex-1 p-3 rounded-xl text-[10px] md:text-xs font-bold uppercase transition border bg-gray-900 border-gray-700 text-gray-400" data-value="Mal Passado">Mal Passado</button>
+                        <button onclick="selectPoint('Ao Ponto')" class="point-btn flex-1 p-3 rounded-xl text-[10px] md:text-xs font-bold uppercase transition border bg-brand-orange border-brand-orange text-white" data-value="Ao Ponto">Ao Ponto</button>
+                        <button onclick="selectPoint('Bem Passado')" class="point-btn flex-1 p-3 rounded-xl text-[10px] md:text-xs font-bold uppercase transition border bg-gray-900 border-gray-700 text-gray-400" data-value="Bem Passado">Bem Passado</button>
+                    </div>
+                </div>
+
+                <!-- Observation -->
+                <div>
+                    <label class="text-sm font-bold text-gray-300 block mb-2 uppercase flex items-center gap-2">
+                        <i data-lucide="message-square" class="w-4 h-4 text-brand-orange"></i> Observações:
+                    </label>
+                    <textarea id="modal-obs" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-white focus:border-brand-orange outline-none resize-none placeholder-gray-500" rows="3" placeholder="Ex: Tirar cebola..."></textarea>
+                </div>
+
+                <button onclick="confirmAddToCart()" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-xl uppercase tracking-widest transition flex items-center justify-center gap-2">
+                    <span>Adicionar</span> <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart Modal -->
+    <div id="cart-modal" class="hidden fixed inset-0 bg-black/90 z-50 flex justify-end md:justify-center items-end md:items-center p-0 md:p-4 slide-up">
+        <div class="bg-brand-card w-full max-w-lg h-[90vh] md:h-auto md:max-h-[90vh] overflow-y-auto rounded-t-3xl md:rounded-2xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold italic flex items-center gap-2">
+                    <i data-lucide="shopping-bag" class="text-brand-orange"></i> SEU PEDIDO
+                </h2>
+                <button onclick="toggleCart(false)" class="bg-gray-800 p-2 rounded-full text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+
+            <div id="cart-items-container" class="space-y-4 mb-6">
+                <!-- Items injected here -->
+            </div>
+
+            <div id="cart-empty-msg" class="text-center text-gray-500 py-10 hidden">Carrinho vazio.</div>
+
+            <!-- Cart Footer (Controls) -->
+            <div id="cart-controls">
+                <button onclick="toggleCart(false)" class="w-full py-3 mb-6 rounded-2xl font-bold text-sm text-brand-orange border border-brand-orange hover:bg-brand-orange/10 uppercase tracking-widest transition flex items-center justify-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Adicionar mais itens
+                </button>
+
+                <!-- Coupon -->
+                <div class="mb-6">
+                    <label class="text-xs font-bold text-gray-400 block mb-2 uppercase flex items-center gap-1"><i data-lucide="ticket" class="w-3 h-3"></i> Cupom</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="coupon-input" placeholder="Código" class="flex-1 bg-gray-800 border border-gray-700 p-3 rounded-xl outline-none focus:border-brand-orange text-white placeholder-gray-500">
+                        <button onclick="applyCoupon()" id="coupon-btn" class="bg-brand-orange/20 text-brand-orange px-4 rounded-xl font-bold text-xs uppercase">Aplicar</button>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <div class="bg-gray-900 p-5 rounded-2xl mb-6 border border-gray-800 space-y-4">
+                    <div class="flex gap-3">
+                        <button onclick="setDeliveryType('delivery')" id="btn-delivery" class="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition border-brand-orange bg-brand-orange/10 text-brand-orange">
+                            <i data-lucide="bike" class="w-4 h-4"></i> <span class="text-xs font-bold uppercase">Entrega</span>
+                        </button>
+                        <button onclick="setDeliveryType('pickup')" id="btn-pickup" class="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition border-gray-700 text-gray-400">
+                            <i data-lucide="store" class="w-4 h-4"></i> <span class="text-xs font-bold uppercase">Retirada</span>
+                        </button>
+                    </div>
+
+                    <input type="text" id="input-name" placeholder="Seu Nome" class="w-full bg-gray-800 p-3 rounded-xl outline-none text-white placeholder-gray-500">
+                    <input type="tel" id="input-phone" placeholder="Seu Telefone" class="w-full bg-gray-800 p-3 rounded-xl outline-none text-white placeholder-gray-500">
+                    
+                    <div id="address-fields" class="space-y-3">
+                        <div class="flex gap-2">
+                            <input type="text" id="input-street" placeholder="Rua" class="w-full bg-gray-800 p-3 rounded-xl outline-none text-white placeholder-gray-500">
+                            <input type="text" id="input-number" placeholder="Nº" class="w-20 bg-gray-800 p-3 rounded-xl outline-none text-white placeholder-gray-500">
+                        </div>
+                        <input type="text" id="input-neighborhood" placeholder="Bairro" class="w-full bg-gray-800 p-3 rounded-xl outline-none text-white placeholder-gray-500">
+                        <input type="text" id="input-reference" placeholder="Referência" class="w-full bg-gray-800 p-3 rounded-xl outline-none text-white placeholder-gray-500">
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2 uppercase tracking-wide text-gray-400">Pagamento</label>
+                    <select id="input-payment" onchange="toggleChangeInput()" class="w-full bg-gray-800 border-2 border-gray-700 rounded-xl p-3 text-white outline-none">
+                        <option value="Pix">Pix</option>
+                        <option value="Cartão">Cartão</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                    </select>
+                    <input type="text" id="input-change" placeholder="Troco para quanto?" class="hidden w-full mt-3 bg-gray-800 border border-gray-700 p-3 rounded-xl outline-none text-white">
+                </div>
+
+                <!-- Totals -->
+                <div class="space-y-2 text-sm px-2 mb-8 border-t border-gray-800 pt-4">
+                    <div class="flex justify-between text-gray-400"><span>Subtotal</span><span id="txt-subtotal">R$ 0.00</span></div>
+                    <div id="row-discount" class="hidden flex justify-between text-green-500"><span>Desconto</span><span id="txt-discount">- R$ 0.00</span></div>
+                    <div class="flex justify-between text-gray-400"><span>Entrega</span><span id="txt-delivery">R$ 0.00</span></div>
+                    <div class="flex justify-between text-xl font-black pt-4 uppercase italic text-white"><span>Total</span><span id="txt-total">R$ 0.00</span></div>
+                </div>
+
+                <button onclick="checkout()" id="btn-checkout" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-black text-lg shadow-lg uppercase transition">
+                    Enviar Pedido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- DATA & LOGIC -->
+    <script>
+        const SUPABASE_URL = 'https://ckcajwsmqnducxrxonfo.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_n2PHls5ekhYuMqOnKsC5wQ_osqjDuC-';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- CONSTANTS & DATA ---
+        const STORE_PHONE = "5587991813113"; 
+        const COUPONS = {
+            'BEMVINDO': { type: 'fixed', value: 5.00 },
+            'BRASAMALTE': { type: 'percent', value: 10 },
+        };
+        const CATEGORIES = [
+            { id: 'Hamburguers', label: 'Hamburguers' },
+            { id: 'Combos', label: 'Combos' },
+            { id: 'Acompanhamentos', label: 'Acomp.' },
+            { id: 'Refrigerantes', label: 'Bebidas' },
+            { id: 'Sucos', label: 'Sucos' },
+        ];
+        
+        let PRODUCTS = [];
+
+        // --- STATE ---
+        let cart = [];
+        let activeCategory = CATEGORIES[0].id;
+        let isStoreOpen = true;
+        let pendingProduct = null; // For modal
+        let selectedVariant = null;
+        let selectedPoint = 'Ao Ponto';
+        let deliveryType = 'delivery';
+        let activeCouponCode = null;
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+            renderCategories();
+            checkStoreStatus();
+            
+            // Setup floating cart button click
+            document.getElementById('floating-cart-btn').addEventListener('click', () => toggleCart(true));
+            
+            // Init Icons
+            lucide.createIcons();
+        });
+
+        async function loadProducts() {
+            try {
+                const { data, error } = await supabase.from('products').select('*');
+                if(!error && data) {
+                    PRODUCTS = data;
+                    renderProducts();
+                } else {
+                    console.error(error);
+                }
+            } catch (e) {
+                console.error("Error loading products", e);
+            }
+        }
+
+        // --- RENDER FUNCTIONS ---
+        function renderCategories() {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = CATEGORIES.map(cat => `
+                <button 
+                    onclick="setCategory('${cat.id}')"
+                    class="whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold uppercase transition-all duration-300 ${activeCategory === cat.id ? 'bg-brand-orange text-white shadow-lg shadow-orange-500/20' : 'bg-brand-card text-gray-400 hover:text-white'}"
+                >
+                    ${cat.label}
+                </button>
+            `).join('');
+        }
+
+        function renderProducts() {
+            const container = document.getElementById('products-grid');
+            const filtered = PRODUCTS.filter(p => p.category === activeCategory);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-1 md:col-span-2 text-center text-gray-500 py-10">Nenhum produto nesta categoria.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(p => `
+                <div class="bg-brand-card p-4 rounded-2xl flex gap-4 border border-gray-800 hover:border-brand-orange/50 transition-all duration-300 shadow-lg">
+                    <img src="${p.image}" alt="${p.name}" class="w-24 h-24 rounded-xl object-cover bg-gray-900">
+                    <div class="flex-1 flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-black text-base italic uppercase text-white leading-tight mb-1">${p.name}</h3>
+                            <p class="text-xs text-gray-400 line-clamp-2 leading-tight">${p.description}</p>
+                        </div>
+                        <div class="flex justify-between items-center mt-3">
+                            <span class="text-brand-orange font-black text-base">R$ ${p.price.toFixed(2)}</span>
+                            <button onclick="initAddToCart(${p.id})" class="bg-brand-orange hover:bg-orange-600 text-white h-10 w-10 rounded-lg flex items-center justify-center transition-colors active:scale-95">
+                                <i data-lucide="plus" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function setCategory(id) {
+            activeCategory = id;
+            renderCategories();
+            renderProducts();
+        }
+
+        async function checkStoreStatus() {
+            try {
+                const { data, error } = await supabase
+                    .from('settings')
+                    .select('value')
+                    .eq('key', 'store_open')
+                    .single();
+                
+                if(!error && data) {
+                    isStoreOpen = data.value;
+                    updateStoreStatusUI();
+                }
+            } catch (e) {
+                console.error("Error status", e);
+            }
+        }
+
+        function updateStoreStatusUI() {
+            const badge = document.getElementById('store-status-badge');
+            if(isStoreOpen) {
+                badge.innerText = "Aberto Agora";
+                badge.className = "mt-3 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg text-white bg-green-500";
+            } else {
+                badge.innerText = "Fechado no Momento";
+                badge.className = "mt-3 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg text-white bg-red-500";
+            }
+            
+            // Update Checkout Button
+            const btn = document.getElementById('btn-checkout');
+            if(btn) {
+                btn.disabled = !isStoreOpen;
+                btn.innerText = isStoreOpen ? "Enviar Pedido" : "Fechado Agora";
+                btn.className = `w-full py-4 rounded-2xl font-black text-lg shadow-lg uppercase transition ${isStoreOpen ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-700 text-gray-400 cursor-not-allowed'}`;
+            }
+        }
+
+        // --- CART LOGIC ---
+        function initAddToCart(productId) {
+            if(!isStoreOpen) return alert("Estabelecimento fechado.");
+            
+            const product = PRODUCTS.find(p => p.id === productId);
+            if (!product) return;
+
+            const needsModal = ['Hamburguers', 'Combos', 'Acompanhamentos'].includes(product.category) || (product.options && product.options.length > 0);
+
+            if(needsModal) {
+                openProductModal(product);
+            } else {
+                addToCart(product, 1, null, null, null);
+            }
+        }
+
+        function openProductModal(product) {
+            pendingProduct = product;
+            selectedVariant = null;
+            selectedPoint = 'Ao Ponto';
+            document.getElementById('modal-obs').value = '';
+
+            // Set content
+            document.getElementById('modal-product-name').innerText = product.name;
+            document.getElementById('modal-product-desc').innerText = product.description;
+
+            // Handle Variants
+            const optContainer = document.getElementById('modal-options-container');
+            const optList = document.getElementById('modal-options-list');
+            
+            if(product.options && product.options.length > 0) {
+                optContainer.classList.remove('hidden');
+                optList.innerHTML = product.options.map(opt => `
+                    <button onclick="selectVariant('${opt}')" class="variant-btn w-full p-3 rounded-xl text-left flex justify-between items-center border bg-gray-900 border-transparent text-gray-400" data-val="${opt}">
+                        <span class="font-bold text-sm">${opt}</span>
+                    </button>
+                `).join('');
+            } else {
+                optContainer.classList.add('hidden');
+            }
+
+            // Handle Point
+            const pointContainer = document.getElementById('modal-point-container');
+            if(['Hamburguers', 'Combos'].includes(product.category)) {
+                pointContainer.classList.remove('hidden');
+                updatePointUI();
+            } else {
+                pointContainer.classList.add('hidden');
+            }
+
+            document.getElementById('product-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+            pendingProduct = null;
+        }
+
+        function selectVariant(opt) {
+            selectedVariant = opt;
+            const btns = document.querySelectorAll('.variant-btn');
+            btns.forEach(btn => {
+                if(btn.dataset.val === opt) {
+                    btn.className = "variant-btn w-full p-3 rounded-xl text-left flex justify-between items-center border transition bg-brand-orange/10 border-brand-orange text-white";
+                    if(!btn.querySelector('.dot')) btn.innerHTML += '<div class="dot w-2 h-2 rounded-full bg-brand-orange"></div>';
+                } else {
+                    btn.className = "variant-btn w-full p-3 rounded-xl text-left flex justify-between items-center border transition bg-gray-900 border-transparent text-gray-400";
+                    const dot = btn.querySelector('.dot');
+                    if(dot) dot.remove();
+                }
+            });
+        }
+
+        function selectPoint(pt) {
+            selectedPoint = pt;
+            updatePointUI();
+        }
+
+        function updatePointUI() {
+            const btns = document.querySelectorAll('.point-btn');
+            btns.forEach(btn => {
+                if(btn.dataset.value === selectedPoint) {
+                    btn.className = "point-btn flex-1 p-3 rounded-xl text-[10px] md:text-xs font-bold uppercase transition border bg-brand-orange border-brand-orange text-white";
+                } else {
+                    btn.className = "point-btn flex-1 p-3 rounded-xl text-[10px] md:text-xs font-bold uppercase transition border bg-gray-900 border-gray-700 text-gray-400";
+                }
+            });
+        }
+
+        function confirmAddToCart() {
+            if(!pendingProduct) return;
+            if(pendingProduct.options && pendingProduct.options.length > 0 && !selectedVariant) {
+                alert("Selecione uma opção");
+                return;
+            }
+
+            const obs = document.getElementById('modal-obs').value;
+            const pt = ['Hamburguers', 'Combos'].includes(pendingProduct.category) ? selectedPoint : null;
+
+            addToCart(pendingProduct, 1, selectedVariant, pt, obs);
+            closeProductModal();
+        }
+
+        function addToCart(product, quantity, option, point, obs) {
+            const newItem = {
+                ...product,
+                cartId: Math.random().toString(36).substring(7),
+                quantity,
+                selectedOption: option,
+                cookingPoint: point,
+                observation: obs
+            };
+            cart.push(newItem);
+            updateCartUI();
+            toggleCart(true);
+        }
+
+        function removeFromCart(cartId) {
+            cart = cart.filter(i => i.cartId !== cartId);
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            // Update Floating Badge
+            const btn = document.getElementById('floating-cart-btn');
+            const count = document.getElementById('cart-count');
+            const totalFloating = document.getElementById('cart-total-floating');
+            
+            if(cart.length > 0) {
+                btn.classList.remove('hidden');
+                btn.classList.add('flex');
+            } else {
+                btn.classList.add('hidden');
+            }
+            count.innerText = cart.length;
+
+            // Calculate Totals
+            const subtotal = cart.reduce((acc, item) => acc + item.price, 0);
+            let discount = 0;
+            if(activeCouponCode && COUPONS[activeCouponCode]) {
+                const rule = COUPONS[activeCouponCode];
+                discount = rule.type === 'fixed' ? rule.value : subtotal * (rule.value / 100);
+            }
+            const deliveryFee = deliveryType === 'delivery' ? 7.00 : 0;
+            const total = Math.max(0, subtotal + deliveryFee - discount);
+
+            totalFloating.innerText = `R$ ${total.toFixed(2)}`;
+
+            // Update Modal Content
+            const container = document.getElementById('cart-items-container');
+            const emptyMsg = document.getElementById('cart-empty-msg');
+            const controls = document.getElementById('cart-controls');
+
+            if(cart.length === 0) {
+                container.innerHTML = '';
+                emptyMsg.classList.remove('hidden');
+                controls.classList.add('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+                controls.classList.remove('hidden');
+                
+                container.innerHTML = cart.map(item => `
+                    <div class="flex justify-between items-start bg-gray-900/50 p-3 rounded-xl gap-2">
+                        <div class="flex-1">
+                            <p class="font-bold text-sm text-white">${item.name}</p>
+                            <p class="text-[11px] text-gray-400 font-medium mt-1 leading-snug">
+                                ${[item.selectedOption, item.cookingPoint, item.observation ? `Obs: ${item.observation}` : ''].filter(Boolean).join(' • ')}
+                            </p>
+                            <p class="text-brand-orange text-xs font-bold mt-1">R$ ${item.price.toFixed(2)}</p>
+                        </div>
+                        <button onclick="removeFromCart('${item.cartId}')" class="text-gray-500 hover:text-red-500 p-2"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
+
+            // Update Totals UI
+            document.getElementById('txt-subtotal').innerText = `R$ ${subtotal.toFixed(2)}`;
+            document.getElementById('txt-delivery').innerText = deliveryFee === 0 ? 'Grátis' : `R$ ${deliveryFee.toFixed(2)}`;
+            document.getElementById('txt-total').innerText = `R$ ${total.toFixed(2)}`;
+            
+            const rowDisc = document.getElementById('row-discount');
+            if(discount > 0) {
+                rowDisc.classList.remove('hidden');
+                document.getElementById('txt-discount').innerText = `- R$ ${discount.toFixed(2)}`;
+            } else {
+                rowDisc.classList.add('hidden');
+            }
+        }
+
+        function toggleCart(show) {
+            const modal = document.getElementById('cart-modal');
+            if(show) {
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            } else {
+                modal.classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        // --- CHECKOUT LOGIC ---
+        function applyCoupon() {
+            const input = document.getElementById('coupon-input');
+            const code = input.value.toUpperCase();
+            
+            if(activeCouponCode) {
+                // Remove
+                activeCouponCode = null;
+                input.value = '';
+                document.getElementById('coupon-btn').innerText = 'Aplicar';
+                document.getElementById('coupon-btn').className = "bg-brand-orange/20 text-brand-orange px-4 rounded-xl font-bold text-xs uppercase";
+                input.disabled = false;
+            } else {
+                // Add
+                if(COUPONS[code]) {
+                    activeCouponCode = code;
+                    document.getElementById('coupon-btn').innerText = 'Remover';
+                    document.getElementById('coupon-btn').className = "bg-red-500/20 text-red-500 px-4 rounded-xl font-bold text-xs uppercase";
+                    input.disabled = true;
+                    // Added Alert
+                    alert("Cupom aplicado com sucesso!");
+                } else {
+                    alert('Cupom inválido');
+                }
+            }
+            updateCartUI();
+        }
+
+        function setDeliveryType(type) {
+            deliveryType = type;
+            const btnDel = document.getElementById('btn-delivery');
+            const btnPick = document.getElementById('btn-pickup');
+            const addrFields = document.getElementById('address-fields');
+
+            if(type === 'delivery') {
+                btnDel.className = "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition border-brand-orange bg-brand-orange/10 text-brand-orange";
+                btnPick.className = "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition border-gray-700 text-gray-400";
+                addrFields.classList.remove('hidden');
+            } else {
+                btnPick.className = "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition border-brand-orange bg-brand-orange/10 text-brand-orange";
+                btnDel.className = "flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition border-gray-700 text-gray-400";
+                addrFields.classList.add('hidden');
+            }
+            updateCartUI();
+        }
+
+        function toggleChangeInput() {
+            const method = document.getElementById('input-payment').value;
+            const changeInput = document.getElementById('input-change');
+            if(method === 'Dinheiro') changeInput.classList.remove('hidden');
+            else changeInput.classList.add('hidden');
+        }
+
+        async function checkout() {
+            if(!isStoreOpen) return;
+
+            const name = document.getElementById('input-name').value;
+            const phone = document.getElementById('input-phone').value;
+            const paymentMethod = document.getElementById('input-payment').value;
+            const changeAmount = document.getElementById('input-change').value;
+
+            if(!name || !phone) return alert("Preencha nome e telefone");
+            
+            let addressStr = 'Retirada no Balcão';
+            if(deliveryType === 'delivery') {
+                const street = document.getElementById('input-street').value;
+                const number = document.getElementById('input-number').value;
+                const neighbor = document.getElementById('input-neighborhood').value;
+                const ref = document.getElementById('input-reference').value;
+
+                if(!street || !number || !neighbor) return alert("Endereço incompleto");
+                addressStr = `${street}, ${number} - ${neighbor} (${ref})`;
+            }
+
+            // Recalculate Final Totals
+            const subtotal = cart.reduce((acc, item) => acc + item.price, 0);
+            let discount = 0;
+            if(activeCouponCode && COUPONS[activeCouponCode]) {
+                const rule = COUPONS[activeCouponCode];
+                discount = rule.type === 'fixed' ? rule.value : subtotal * (rule.value / 100);
+            }
+            const deliveryFee = deliveryType === 'delivery' ? 7.00 : 0;
+            const total = Math.max(0, subtotal + deliveryFee - discount);
+
+            // Structure Data
+            const orderItems = cart.map(item => {
+                let details = [];
+                if (item.selectedOption) details.push(item.selectedOption);
+                if (item.cookingPoint) details.push(item.cookingPoint);
+                if (item.observation) details.push(`Obs: ${item.observation}`);
+                return {
+                    name: item.name,
+                    quantity: 1,
+                    price: item.price,
+                    details: details.join(', ')
+                };
+            });
+
+            // Send to Supabase
+            const { data, error } = await supabase.from('orders').insert([
+                {
+                    customer_name: name,
+                    customer_phone: phone,
+                    total: total,
+                    items: orderItems,
+                    payment_method: paymentMethod,
+                    change_amount: changeAmount,
+                    delivery_type: deliveryType,
+                    address: addressStr,
+                    discount: discount,
+                    status: 'Pendente'
+                }
+            ]).select();
+
+            if(error) {
+                alert("Erro ao enviar pedido: " + error.message);
+                return;
+            }
+
+            const newOrder = data[0];
+
+            // WhatsApp
+            let msg = `*NOVO PEDIDO #${newOrder.id}*\n\n`;
+            msg += `*Cliente:* ${name}\n`;
+            msg += `*Tipo:* ${deliveryType === 'delivery' ? 'Entrega 🛵' : 'Retirada 🥡'}\n`;
+            if (deliveryType === 'delivery') msg += `*Endereço:* ${addressStr}\n`;
+            msg += `\n*ITENS:*\n${orderItems.map(i => `• ${i.quantity}x ${i.name} ${i.details ? `(${i.details})` : ''}`).join('\n')}\n`;
+            msg += `\n*Subtotal:* R$ ${subtotal.toFixed(2)}`;
+            if (discount > 0) msg += `\n*Cupom:* - R$ ${discount.toFixed(2)}`;
+            if (deliveryType === 'delivery') msg += `\n*Entrega:* R$ ${deliveryFee.toFixed(2)}`;
+            msg += `\n*TOTAL: R$ ${total.toFixed(2)}*`;
+            msg += `\n*Pagamento:* ${paymentMethod}`;
+            if(paymentMethod === 'Dinheiro' && changeAmount) msg += ` (Troco para ${changeAmount})`;
+
+            window.open(`https://wa.me/${STORE_PHONE}?text=${encodeURIComponent(msg)}`, '_blank');
+            
+            // CLEAR FORM & CART
+            cart = [];
+            activeCouponCode = null;
+            document.getElementById('input-name').value = '';
+            document.getElementById('input-phone').value = '';
+            document.getElementById('input-street').value = '';
+            document.getElementById('input-number').value = '';
+            document.getElementById('input-neighborhood').value = '';
+            document.getElementById('input-reference').value = '';
+            document.getElementById('input-change').value = '';
+            document.getElementById('input-payment').value = 'Pix';
+            document.getElementById('coupon-input').value = '';
+            
+            // Reset Coupon UI
+            document.getElementById('coupon-btn').innerText = 'Aplicar';
+            document.getElementById('coupon-btn').className = "bg-brand-orange/20 text-brand-orange px-4 rounded-xl font-bold text-xs uppercase";
+            document.getElementById('coupon-input').disabled = false;
+            
+            // Reset Delivery Default
+            setDeliveryType('delivery');
+            toggleChangeInput();
+
+            toggleCart(false);
+            updateCartUI();
+        }
+    </script>
+</body>
+</html>
